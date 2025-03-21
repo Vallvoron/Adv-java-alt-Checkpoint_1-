@@ -19,6 +19,5 @@ public class CreateEmployee {
 
     @Schema(description = "Позиция сотрудника", example = "UNDEFINED")
     @Size(max = 20, message = "Позиция не может быть больше 20 символов")
-    @NotBlank(message = "Позиция не должна быть пустым")
     private emp_position position;
 }

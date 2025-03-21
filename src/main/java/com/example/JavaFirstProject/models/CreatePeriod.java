@@ -20,7 +20,6 @@ public class CreatePeriod {
 
     @Schema(description = "Тип слота", example = "UNDEFINED")
     @Size(max = 20, message = "Тип слота не может быть больше 20 символов")
-    @NotBlank(message = "Тип слота не должен быть пустым")
     private type slot_type;
 
     @Schema(description = "Id исполнителя слота", example = "3d22234cfa4e4020891e9529b6e53596")
