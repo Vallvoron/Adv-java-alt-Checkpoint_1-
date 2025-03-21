@@ -10,7 +10,7 @@ public class CreateSchedule {
 
     @Schema(description = "Название расписания", example = "name")
     @Size(max = 255, message = "Имя не может быть больше 255 символов")
-    @NotBlank(message = "Id не должен быть пустым")
+    @NotBlank(message = "Имя не должно быть пустым")
     private String schedule_name;
 
 }

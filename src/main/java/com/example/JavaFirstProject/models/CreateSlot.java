@@ -11,7 +11,7 @@ import java.time.OffsetTime;
 public class CreateSlot {
     @Schema(description = "Id шаблона расписания", example = "3d22234cfa4e4020891e9529b6e53596")
     @Size(min=32, max = 32, message = "Id должен быть ровно 32 символа")
-    @NotBlank(message = "Имя не должно быть пустым")
+    @NotBlank(message = "Id не должен быть пустым")
     private String schedule_template_id;
 
     @Schema(description = "Время начала слота", example = "10:15:30+01:00")
