@@ -6,6 +6,7 @@ import com.example.JavaFirstProject.models.*;
 import com.example.JavaFirstProject.repositories.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +14,9 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.time.Period;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 @RestController
@@ -62,7 +65,7 @@ public class ScheduleController {
         try {
             Optional<Schedule> schedule = ScheduleDb.findById(scheduleId);
             if (schedule.isEmpty()){
-                ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON).body("Расписания с указанным id не существует");
+                ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Расписания с указанным id не существует");
             }
             Schedule scheduleRes = schedule.get();
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(scheduleRes);
@@ -95,7 +98,7 @@ public class ScheduleController {
         try {
             Optional<ScheduleTemplate> scheduleTemplate = ScheduleTemplateDb.findById(templateId);
             if (scheduleTemplate.isEmpty()){
-                ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON).body("Шаблона с указанным id не существует");
+                ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Шаблона с указанным id не существует");
             }
             ScheduleTemplate scheduleTemplateRes = scheduleTemplate.get();
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(scheduleTemplateRes);
@@ -112,11 +115,11 @@ public class ScheduleController {
     public ResponseEntity<?> createScheduleSlot(@Valid @RequestBody CreateSlot request){
         try {
             if (request.getBegin_time().isAfter(request.getEnd_time())){
-                ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON).body("Дата начала не должна быть после даты окончания");
+                ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Дата начала не должна быть после даты окончания");
             }
             Optional<ScheduleTemplate> scheduleTemplate = ScheduleTemplateDb.findById(request.getSchedule_template_id());
             if (scheduleTemplate.isEmpty()){
-                ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON).body("Шаблона с указанным id не существует");
+                ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Шаблона с указанным id не существует");
             }
 
             ScheduleSlot newScheduleSlot = new ScheduleSlot();
@@ -139,7 +142,7 @@ public class ScheduleController {
         try {
             Optional<ScheduleSlot> scheduleSlot = ScheduleSlotDb.findById(slotId);
             if (scheduleSlot.isEmpty()){
-                ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON).body("Слота с указанным id не существует");
+                ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Слота с указанным id не существует");
             }
             ScheduleSlot scheduleSlotRes = scheduleSlot.get();
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(scheduleSlotRes);
@@ -175,10 +178,77 @@ public class ScheduleController {
         try {
             Optional<Employee> employee = EmployeeDb.findById(employeeId);
             if (employee.isEmpty()){
-                ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON).body("Сотрудника с указанным id не существует");
+                ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Сотрудника с указанным id не существует");
             }
             Employee employeeRes = employee.get();
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(employeeRes);
+        }catch (Exception error) {
+            return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
+        }
+    };
+
+    @PostMapping("/createPeriod")
+    @Operation(
+            summary = "Создание периода расписания"
+    )
+    public ResponseEntity<?> createPeriod(@RequestHeader("x-current-user") String administratorId, @Valid @RequestBody CreatePeriod request){
+        try {
+            if (administratorId == null) {
+                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Вы не зарегистрированы"));
+            }
+            Optional<Employee> user = EmployeeDb.findById(administratorId);
+            if (user.isEmpty()) {
+                return ResponseEntity.status(404).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Пользователь не наден"));
+            }
+
+            Employee administrator = user.get();
+
+            if (!Objects.equals(administrator.getPosition().toString(), "MANAGER")) {
+                return ResponseEntity.status(403).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Запрос отклонен, недостаточно прав"));
+            }
+            SchedulePeriod newPeriod = new SchedulePeriod();
+            Optional<Schedule> scheduleOptional = ScheduleDb.findById(request.getSchedule_id());
+            if (scheduleOptional.isEmpty()) {
+                return ResponseEntity.status(404).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Расписание не найдено"));
+            }
+            Optional<ScheduleSlot> scheduleSlotOptional = ScheduleSlotDb.findById(request.getSlot_id());
+            if (scheduleSlotOptional.isEmpty()) {
+                return ResponseEntity.status(404).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Слот расписания не найден"));
+            }
+            String executor;
+            if(!request.getExecutor_id().equals(administratorId) && !request.getExecutor_id().isEmpty()){
+                Optional<Employee> executorOptional = EmployeeDb.findById(request.getExecutor_id());
+                if (executorOptional.isEmpty()) {
+                    return ResponseEntity.status(404).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Исполнитель не найден"));
+                }
+                executor= request.getExecutor_id();
+            }
+            else executor=null;
+            newPeriod.setSchedule_id(request.getSchedule_id());
+            newPeriod.setSlot_id(request.getSlot_id());
+            newPeriod.setSlot_type(request.getSlot_type());
+            newPeriod.setAdministrator_id(administratorId);
+            newPeriod.setExecutor_id(executor);
+
+            SchedulePeriodDb.save(newPeriod);
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body("Период успешно создан");
+        }catch (Exception error) {
+            return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
+        }
+    };
+
+    @GetMapping("/getPeriod")
+    @Operation(
+            summary = "Получение периода расписания"
+    )
+    public ResponseEntity<?> getPeriod(@Valid @RequestParam String periodId){
+        try {
+            Optional<SchedulePeriod> period = SchedulePeriodDb.findById(periodId);
+            if (period.isEmpty()){
+                ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Периода с указанным id не существует");
+            }
+            SchedulePeriod periodRes = period.get();
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(periodRes);
         }catch (Exception error) {
             return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
         }
