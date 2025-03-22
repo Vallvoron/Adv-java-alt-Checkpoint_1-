@@ -6,7 +6,6 @@ import com.example.JavaFirstProject.models.*;
 import com.example.JavaFirstProject.repositories.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -14,7 +13,8 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
-import java.time.Period;
+import java.time.OffsetTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -215,6 +215,7 @@ public class ScheduleController {
             if (scheduleSlotOptional.isEmpty()) {
                 return ResponseEntity.status(404).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Слот расписания не найден"));
             }
+            ScheduleSlot slot = scheduleSlotOptional.get();
             String executor;
             if(!request.getExecutor_id().equals(administratorId) && !request.getExecutor_id().isEmpty()){
                 Optional<Employee> executorOptional = EmployeeDb.findById(request.getExecutor_id());
@@ -230,6 +231,9 @@ public class ScheduleController {
             newPeriod.setAdministrator_id(administratorId);
             newPeriod.setExecutor_id(executor);
 
+            if (isOverlapping(newPeriod, slot.getBegin_time(), slot.getEnd_time())) {
+                ResponseEntity.status(409).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Период перекрывается с существующим периодом"));
+            }
             SchedulePeriodDb.save(newPeriod);
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body("Период успешно создан");
         }catch (Exception error) {
@@ -253,4 +257,20 @@ public class ScheduleController {
             return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
         }
     };
+
+    private boolean isOverlapping(SchedulePeriod newPeriod, OffsetTime begin_time, OffsetTime end_time) {
+        List<SchedulePeriod> overlappingPeriods = SchedulePeriodDb.findOverlappingPeriods(
+                newPeriod.getExecutor_id(),
+                newPeriod.getSchedule_id()
+        );
+
+        return overlappingPeriods.stream().anyMatch(existingPeriod -> {
+            Optional<ScheduleSlot> existingSlotOptional = ScheduleSlotDb.findById(existingPeriod.getSlot_id());
+            if (existingSlotOptional.isEmpty()) {
+                return false;
+            }
+            ScheduleSlot existingSlot = existingSlotOptional.get();
+            return existingSlot.getEnd_time().isAfter(begin_time) && existingSlot.getBegin_time().isBefore(end_time);
+        });
+    }
 }
