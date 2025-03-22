@@ -25,8 +25,8 @@ public class SchedulePeriod {
     @Column(nullable = false, length = 32)
     private String slot_id;
 
-    @Column(nullable = false, length = 32)
-    private String schedule_id;
+    @Column(nullable = false, length = 32, name = "schedule_id")
+    private String scheduleId;
 
     @Column(nullable = false, length = 20)
     @Enumerated(EnumType.STRING)

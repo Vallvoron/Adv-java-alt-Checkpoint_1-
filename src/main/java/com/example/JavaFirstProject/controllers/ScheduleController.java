@@ -43,7 +43,7 @@ public class ScheduleController {
     @Operation(
             summary = "Создание расписания"
     )
-    public ResponseEntity<?> createSchedule(@Valid @RequestBody CreateSchedule request){
+    public ResponseEntity<?> createSchedule(@Valid @RequestParam CreateSchedule request){
         try {
             Schedule newschedule = new Schedule();
             newschedule.setSchedule_name(request.getSchedule_name());
@@ -65,7 +65,7 @@ public class ScheduleController {
         try {
             Optional<Schedule> schedule = ScheduleDb.findById(scheduleId);
             if (schedule.isEmpty()){
-                ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Расписания с указанным id не существует");
+                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Расписания с указанным id не существует");
             }
             Schedule scheduleRes = schedule.get();
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(scheduleRes);
@@ -98,7 +98,7 @@ public class ScheduleController {
         try {
             Optional<ScheduleTemplate> scheduleTemplate = ScheduleTemplateDb.findById(templateId);
             if (scheduleTemplate.isEmpty()){
-                ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Шаблона с указанным id не существует");
+                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Шаблона с указанным id не существует");
             }
             ScheduleTemplate scheduleTemplateRes = scheduleTemplate.get();
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(scheduleTemplateRes);
@@ -115,11 +115,12 @@ public class ScheduleController {
     public ResponseEntity<?> createScheduleSlot(@Valid @RequestBody CreateSlot request){
         try {
             if (request.getBegin_time().isAfter(request.getEnd_time())){
-                ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Дата начала не должна быть после даты окончания");
+                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Дата начала не должна быть после даты окончания");
             }
             Optional<ScheduleTemplate> scheduleTemplate = ScheduleTemplateDb.findById(request.getSchedule_template_id());
+
             if (scheduleTemplate.isEmpty()){
-                ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Шаблона с указанным id не существует");
+                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Шаблона с указанным id не существует");
             }
 
             ScheduleSlot newScheduleSlot = new ScheduleSlot();
@@ -142,7 +143,7 @@ public class ScheduleController {
         try {
             Optional<ScheduleSlot> scheduleSlot = ScheduleSlotDb.findById(slotId);
             if (scheduleSlot.isEmpty()){
-                ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Слота с указанным id не существует");
+                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Слота с указанным id не существует");
             }
             ScheduleSlot scheduleSlotRes = scheduleSlot.get();
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(scheduleSlotRes);
@@ -178,7 +179,7 @@ public class ScheduleController {
         try {
             Optional<Employee> employee = EmployeeDb.findById(employeeId);
             if (employee.isEmpty()){
-                ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Сотрудника с указанным id не существует");
+                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Сотрудника с указанным id не существует");
             }
             Employee employeeRes = employee.get();
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(employeeRes);
@@ -193,9 +194,6 @@ public class ScheduleController {
     )
     public ResponseEntity<?> createPeriod(@RequestHeader("x-current-user") String administratorId, @Valid @RequestBody CreatePeriod request){
         try {
-            if (administratorId == null) {
-                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Вы не зарегистрированы"));
-            }
             Optional<Employee> user = EmployeeDb.findById(administratorId);
             if (user.isEmpty()) {
                 return ResponseEntity.status(404).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Пользователь не наден"));
@@ -211,13 +209,14 @@ public class ScheduleController {
             if (scheduleOptional.isEmpty()) {
                 return ResponseEntity.status(404).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Расписание не найдено"));
             }
+            Schedule schedule = scheduleOptional.get();
             Optional<ScheduleSlot> scheduleSlotOptional = ScheduleSlotDb.findById(request.getSlot_id());
             if (scheduleSlotOptional.isEmpty()) {
                 return ResponseEntity.status(404).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Слот расписания не найден"));
             }
             ScheduleSlot slot = scheduleSlotOptional.get();
             String executor;
-            if(!request.getExecutor_id().equals(administratorId) && !request.getExecutor_id().isEmpty()){
+            if(!request.getExecutor_id().equals(administratorId) && request.getExecutor_id()!=""){
                 Optional<Employee> executorOptional = EmployeeDb.findById(request.getExecutor_id());
                 if (executorOptional.isEmpty()) {
                     return ResponseEntity.status(404).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Исполнитель не найден"));
@@ -225,16 +224,18 @@ public class ScheduleController {
                 executor= request.getExecutor_id();
             }
             else executor=null;
-            newPeriod.setSchedule_id(request.getSchedule_id());
+            newPeriod.setScheduleId(request.getSchedule_id());
             newPeriod.setSlot_id(request.getSlot_id());
             newPeriod.setSlot_type(request.getSlot_type());
             newPeriod.setAdministrator_id(administratorId);
             newPeriod.setExecutor_id(executor);
 
-            if (isOverlapping(newPeriod, slot.getBegin_time(), slot.getEnd_time())) {
-                ResponseEntity.status(409).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Период перекрывается с существующим периодом"));
+            if (!isOverlapping(newPeriod, slot.getBegin_time(), slot.getEnd_time())) {
+                return ResponseEntity.status(409).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Период перекрывается с существующим периодом"));
             }
             SchedulePeriodDb.save(newPeriod);
+            schedule.setUpdate_date(Instant.now());
+            ScheduleDb.save(schedule);
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body("Период успешно создан");
         }catch (Exception error) {
             return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
@@ -259,18 +260,19 @@ public class ScheduleController {
     };
 
     private boolean isOverlapping(SchedulePeriod newPeriod, OffsetTime begin_time, OffsetTime end_time) {
-        List<SchedulePeriod> overlappingPeriods = SchedulePeriodDb.findOverlappingPeriods(
-                newPeriod.getExecutor_id(),
-                newPeriod.getSchedule_id()
+        Optional<List<SchedulePeriod>> OptOverlappingPeriods = SchedulePeriodDb.findAllByScheduleId(
+                newPeriod.getScheduleId()
         );
-
-        return overlappingPeriods.stream().anyMatch(existingPeriod -> {
-            Optional<ScheduleSlot> existingSlotOptional = ScheduleSlotDb.findById(existingPeriod.getSlot_id());
-            if (existingSlotOptional.isEmpty()) {
-                return false;
-            }
+        List<SchedulePeriod> overlappingPeriods = OptOverlappingPeriods.get();
+        for(SchedulePeriod overlappingPeriod : overlappingPeriods)
+        {
+            Optional<ScheduleSlot> existingSlotOptional = ScheduleSlotDb.findById(overlappingPeriod.getSlot_id());
             ScheduleSlot existingSlot = existingSlotOptional.get();
-            return existingSlot.getEnd_time().isAfter(begin_time) && existingSlot.getBegin_time().isBefore(end_time);
-        });
+            if(!((existingSlot.getEnd_time().isAfter(end_time) && existingSlot.getBegin_time().isAfter(begin_time))||(existingSlot.getEnd_time().isBefore(end_time) && existingSlot.getBegin_time().isBefore(begin_time))))
+            {
+                return false;
+            };
+        }
+        return true;
     }
 }
