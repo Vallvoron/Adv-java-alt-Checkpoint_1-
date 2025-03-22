@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.validation.Valid;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -17,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.lang.reflect.Method;
 import java.time.Instant;
 import java.time.OffsetTime;
 import java.util.*;
@@ -309,35 +311,47 @@ public class ScheduleController {
                 return idMatch && scheduleIdMatch && slotIdMatch && slotTypeMatch && administratorIdMatch && executorIdMatch;
             }).collect(Collectors.toList());
 
-            if (sortField != null && !sortField.isEmpty()) {
-                if (sortDirection != null && sortDirection.equalsIgnoreCase("ASC")) {
-                    periodList = periodList.stream()
-                            .sorted((p1, p2) -> {
-                                if (sortField.equalsIgnoreCase("id")) {
-                                    return p1.getId().compareTo(p2.getId());
-                                } else if (sortField.equalsIgnoreCase("scheduleId")) {
-                                    return p1.getScheduleId().compareTo(p2.getScheduleId());
-                                } else if (sortField.equalsIgnoreCase("administratorId")) {
-                                    return p1.getAdministrator_id().compareTo(p2.getAdministrator_id());
-                                }
-                                return 0;
-                            })
-                            .collect(Collectors.toList());
-                } else {
-                    periodList = periodList.stream()
-                            .sorted((p1, p2) -> {
-                                if (sortField.equalsIgnoreCase("id")) {
-                                    return p2.getId().compareTo(p1.getId());
-                                } else if (sortField.equalsIgnoreCase("scheduleId")) {
-                                    return p2.getScheduleId().compareTo(p1.getScheduleId());
-                                }  else if (sortField.equalsIgnoreCase("administratorId")) {
-                                    return p2.getAdministrator_id().compareTo(p1.getAdministrator_id());
-                                }
-                                return 0;
-                            })
-                            .collect(Collectors.toList());
-                }
+            if (sortField == null || sortField.isEmpty()) {
+                sortField = "id";
             }
+
+            String finalSortField = sortField;
+            Comparator<SchedulePeriod> comparator = (p1, p2) -> {
+                try {
+
+                    String getterName = "get" + StringUtils.capitalize(finalSortField);
+
+                    Method method1 = SchedulePeriod.class.getMethod(getterName);
+                    Method method2 = SchedulePeriod.class.getMethod(getterName);
+
+                    Object value1 = method1.invoke(p1);
+                    Object value2 = method2.invoke(p2);
+
+                    if (value1 == null && value2 == null) {
+                        return 0;
+                    } else if (value1 == null) {
+                        return -1;
+                    } else if (value2 == null) {
+                        return 1;
+                    } else if (value1 instanceof Comparable) {
+                        return ((Comparable) value1).compareTo(value2);
+                    } else {
+
+                        System.out.println("Поле " + finalSortField + " не реализует Comparable");
+                        return 0;
+                    }
+
+                } catch (Exception e) {
+                    System.out.println("Ошибка при сортировке по полю " + finalSortField + ": " + e.getMessage());
+                    return 0;
+                }
+            };
+
+            if (sortDirection != null && sortDirection.equalsIgnoreCase("DESC")) {
+                comparator = comparator.reversed();
+            }
+
+            periodList = periodList.stream().sorted(comparator).collect(Collectors.toList());
 
             int totalCount = periodList.size();
             int totalPages = (int) Math.ceil((double) totalCount / size);
