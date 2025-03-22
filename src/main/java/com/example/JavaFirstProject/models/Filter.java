@@ -1,9 +1,13 @@
 package com.example.JavaFirstProject.models;
 
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 @Data
-public class filter {
+@Getter
+@Setter
+public class Filter {
     private String id;
     private String slotId;
     private String scheduleId;

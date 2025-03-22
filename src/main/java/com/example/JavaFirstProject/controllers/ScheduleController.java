@@ -6,7 +6,12 @@ import com.example.JavaFirstProject.models.*;
 import com.example.JavaFirstProject.repositories.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.persistence.criteria.Predicate;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -14,10 +19,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.time.OffsetTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/schedule")
@@ -258,6 +261,199 @@ public class ScheduleController {
             return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
         }
     };
+
+    @GetMapping(value = "/getPeriods", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Получение периодов расписания с фильтрацией и пагинацией")
+    public ResponseEntity<?> getPeriods(
+            @RequestParam(required = false) String id,
+            @RequestParam(required = false) String slotId,
+            @RequestParam(required = false) String scheduleId,
+            @RequestParam(required = false) String slotType,
+            @RequestParam(required = false) String administratorId,
+            @RequestParam(required = false) String executorId,
+            @RequestParam(required = false) String sortField,
+            @RequestParam(required = false) String sortDirection,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        try {
+            List<SchedulePeriod> periodList = SchedulePeriodDb.findAll();
+
+            periodList = periodList.stream().filter(period -> {
+                boolean idMatch = true;
+                boolean scheduleIdMatch = true;
+                boolean slotIdMatch = true;
+                boolean slotTypeMatch = true;
+                boolean administratorIdMatch = true;
+                boolean executorIdMatch = true;
+
+                if (id != null && !id.isBlank()) {
+                    idMatch = (period.getId() != null && period.getId().contains(id));
+                }
+                if (scheduleId != null && !scheduleId.isBlank()) {
+                    scheduleIdMatch = (period.getScheduleId() != null && period.getScheduleId().contains(scheduleId));
+                }
+                if (slotId != null && !slotId.isBlank()) {
+                    slotIdMatch = (period.getSlot_id() != null && period.getSlot_id().contains(slotId));
+                }
+                if (slotType != null && !slotType.isBlank()) {
+                    slotTypeMatch = (period.getSlot_type() != null && period.getSlot_type().toString().contains(slotType));
+                }
+                if (administratorId != null && !administratorId.isBlank()) {
+                    administratorIdMatch = (period.getAdministrator_id() != null && period.getAdministrator_id().contains(administratorId));
+                }
+                if (executorId != null && !executorId.isBlank()) {
+                    executorIdMatch = (period.getExecutor_id() != null && period.getExecutor_id().contains(executorId));
+                }
+
+                return idMatch && scheduleIdMatch && slotIdMatch && slotTypeMatch && administratorIdMatch && executorIdMatch;
+            }).collect(Collectors.toList());
+
+            if (sortField != null && !sortField.isEmpty()) {
+                if (sortDirection != null && sortDirection.equalsIgnoreCase("ASC")) {
+                    periodList = periodList.stream()
+                            .sorted((p1, p2) -> {
+                                if (sortField.equalsIgnoreCase("id")) {
+                                    return p1.getId().compareTo(p2.getId());
+                                } else if (sortField.equalsIgnoreCase("scheduleId")) {
+                                    return p1.getScheduleId().compareTo(p2.getScheduleId());
+                                } else if (sortField.equalsIgnoreCase("administratorId")) {
+                                    return p1.getAdministrator_id().compareTo(p2.getAdministrator_id());
+                                }
+                                return 0;
+                            })
+                            .collect(Collectors.toList());
+                } else {
+                    periodList = periodList.stream()
+                            .sorted((p1, p2) -> {
+                                if (sortField.equalsIgnoreCase("id")) {
+                                    return p2.getId().compareTo(p1.getId());
+                                } else if (sortField.equalsIgnoreCase("scheduleId")) {
+                                    return p2.getScheduleId().compareTo(p1.getScheduleId());
+                                }  else if (sortField.equalsIgnoreCase("administratorId")) {
+                                    return p2.getAdministrator_id().compareTo(p1.getAdministrator_id());
+                                }
+                                return 0;
+                            })
+                            .collect(Collectors.toList());
+                }
+            }
+
+            int totalCount = periodList.size();
+            int totalPages = (int) Math.ceil((double) totalCount / size);
+            int fromIndex = (page - 1) * size;
+            int toIndex = Math.min(fromIndex + size, periodList.size());
+
+            if (fromIndex >= periodList.size()) {
+                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Вы вышли за пределы списка"));
+            }
+
+            List<SchedulePeriod> paginatedList = periodList.subList(fromIndex, toIndex);
+
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(Map.of(
+                    "totalCount", totalCount,
+                    "totalPagesCount", totalPages,
+                    "currentPage", page,
+                    "pageSize", size,
+                    "list", paginatedList));
+
+        } catch (Exception error) {
+            return ResponseEntity.internalServerError().body(Map.of("message", "Ошибка: " + error.getMessage()));
+        }
+    }
+
+    /*@PostMapping(value = "/getPeriods", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Получение периодов расписания с фильтрацией, сортировкой и пагинацией")
+    public ResponseEntity<?> getPeriods(
+            @RequestBody(required = false) Filter filter,
+            @RequestParam(required = false) String sortField,
+            @RequestParam(required = false) String sortDirection,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        try {
+            List<SchedulePeriod> periodList = SchedulePeriodDb.findAll();
+
+            if (filter != null) {
+                periodList = periodList.stream().filter(period -> {
+                    boolean idMatch = true;
+                    boolean scheduleIdMatch = true;
+                    boolean slotIdMatch = true;
+                    boolean slotTypeMatch = true;
+                    boolean administratorIdMatch = true;
+                    boolean executorIdMatch = true;
+
+                    if (filter.getId() != null && !filter.getId().isBlank()) {
+                        idMatch = (period.getId() != null && period.getId().contains(filter.getId()));
+                    }
+                    if (filter.getScheduleId() != null && !filter.getScheduleId().isBlank()) {
+                        scheduleIdMatch = (period.getScheduleId() != null && period.getScheduleId().contains(filter.getScheduleId()));
+                    }
+                    if (filter.getSlotId() != null && !filter.getSlotId().isBlank()) {
+                        slotIdMatch = (period.getSlot_id() != null && period.getSlot_id().contains(filter.getSlotId()));
+                    }
+                    if (filter.getSlotType() != null && !filter.getSlotType().isBlank()) {
+                        slotTypeMatch = (period.getSlot_type() != null && period.getSlot_type().toString().contains(filter.getSlotType()));
+                    }
+                    if (filter.getAdministratorId() != null && !filter.getAdministratorId().isBlank()) {
+                        administratorIdMatch = (period.getAdministrator_id() != null && period.getAdministrator_id().contains(filter.getAdministratorId()));
+                    }
+                    if (filter.getExecutorId() != null && !filter.getExecutorId().isBlank()) {
+                        executorIdMatch = (period.getExecutor_id() != null && period.getExecutor_id().contains(filter.getExecutorId()));
+                    }
+
+                    return idMatch && scheduleIdMatch && slotIdMatch && slotTypeMatch && administratorIdMatch && executorIdMatch;
+                }).collect(Collectors.toList());
+            }
+
+            if (sortField != null && !sortField.isEmpty()) {
+                if (sortDirection != null && sortDirection.equalsIgnoreCase("ASC")) {
+                    periodList = periodList.stream()
+                            .sorted((p1, p2) -> {
+                                if (sortField.equalsIgnoreCase("id")) {
+                                    return p1.getId().compareTo(p2.getId());
+                                } else if (sortField.equalsIgnoreCase("scheduleId")) {
+                                    return p1.getScheduleId().compareTo(p2.getScheduleId());
+                                }
+                                return 0;
+                            })
+                            .collect(Collectors.toList());
+                } else {
+                    periodList = periodList.stream()
+                            .sorted((p1, p2) -> {
+                                if (sortField.equalsIgnoreCase("id")) {
+                                    return p2.getId().compareTo(p1.getId());
+                                } else if (sortField.equalsIgnoreCase("scheduleId")) {
+                                    return p2.getScheduleId().compareTo(p1.getScheduleId());
+                                }
+                                return 0;
+                            })
+                            .collect(Collectors.toList());
+                }
+            }
+
+            int totalCount = periodList.size();
+            int totalPages = (int) Math.ceil((double) totalCount / size);
+            int fromIndex = (page - 1) * size;
+            int toIndex = Math.min(fromIndex + size, periodList.size());
+
+            if (fromIndex >= periodList.size()) {
+                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Вы вышли за пределы списка"));
+            }
+
+            List<SchedulePeriod> paginatedList = periodList.subList(fromIndex, toIndex);
+
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(Map.of(
+                    "totalCount", totalCount,
+                    "totalPagesCount", totalPages,
+                    "currentPage", page,
+                    "pageSize", size,
+                    "list", paginatedList));
+
+        } catch (Exception error) {
+            return ResponseEntity.internalServerError().body(Map.of("message", "Ошибка: " + error.getMessage()));
+        }
+    }*/
 
     private boolean isOverlapping(SchedulePeriod newPeriod, OffsetTime begin_time, OffsetTime end_time) {
         Optional<List<SchedulePeriod>> OptOverlappingPeriods = SchedulePeriodDb.findAllByScheduleId(
