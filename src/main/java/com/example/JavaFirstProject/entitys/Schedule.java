@@ -22,7 +22,7 @@ public class Schedule {
     private String id= uuid();
 
     @Column
-    private String schedule_name;
+    private String scheduleName;
 
     @Column(nullable = false)
     private Instant creation_date;

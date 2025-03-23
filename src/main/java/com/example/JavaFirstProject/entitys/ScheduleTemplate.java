@@ -29,6 +29,7 @@ public class ScheduleTemplate {
     private Instant creation_date;
 
 
+    //тип шаблона генерируется случайно, произвольно довольно широкое слово
     @Column(nullable = false, length = 2)
     private String template_type= generateRandomString();
 

@@ -6,13 +6,8 @@ import com.example.JavaFirstProject.models.*;
 import com.example.JavaFirstProject.repositories.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.persistence.criteria.Predicate;
 import jakarta.validation.Valid;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -48,10 +43,10 @@ public class ScheduleController {
     @Operation(
             summary = "Создание расписания"
     )
-    public ResponseEntity<?> createSchedule(@Valid @RequestParam CreateSchedule request){
+    public ResponseEntity<?> createSchedule(@Valid @RequestBody CreateSchedule request){
         try {
             Schedule newschedule = new Schedule();
-            newschedule.setSchedule_name(request.getSchedule_name());
+            newschedule.setScheduleName(request.getSchedule_name());
             newschedule.setUpdate_date(Instant.now());
             newschedule.setCreation_date(Instant.now());
 
@@ -206,9 +201,6 @@ public class ScheduleController {
 
             Employee administrator = user.get();
 
-            if (!Objects.equals(administrator.getPosition().toString(), "MANAGER")) {
-                return ResponseEntity.status(403).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Запрос отклонен, недостаточно прав"));
-            }
             SchedulePeriod newPeriod = new SchedulePeriod();
             Optional<Schedule> scheduleOptional = ScheduleDb.findById(request.getSchedule_id());
             if (scheduleOptional.isEmpty()) {
@@ -376,6 +368,59 @@ public class ScheduleController {
         }
     }
 
+    @GetMapping(value = "/getFullSchedule")
+    @Operation(summary = "Получения полных параметров расписания вместе с отсортированными периодами")
+    public ResponseEntity<?> getFullSchedule(
+            @RequestParam(required = false) String id,
+            @RequestParam(required = false) String name
+    ) {
+        try {
+            if (id == null && name == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Необходимо указать id или name"));
+            }
+            Optional<Schedule> optSchedule = (id != null)
+                    ? ScheduleDb.findById(id)
+                    : ScheduleDb.findByScheduleName(name);
+            if (optSchedule.isEmpty()) {
+                optSchedule = ScheduleDb.findByScheduleName(name);
+                if(optSchedule.isEmpty()){
+                    return ResponseEntity.status(404).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Расписание не найдено ни по одному параметру"));
+                }
+            }
+            Schedule schedule = optSchedule.get();
+            if(!Objects.equals(schedule.getScheduleName(), name) && name!=null){
+                return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Имя не соответствует расписанию с указанным id"));
+            }
+
+            Optional<List<SchedulePeriod>> optPeriods = SchedulePeriodDb.findAllByScheduleId(schedule.getId());
+            List<SchedulePeriod> periods;
+            periods = optPeriods.orElse(null);
+            if(periods== null)
+            {
+                Map<String, Object> response = Map.of(
+                        "schedule", schedule,
+                        "periods", "[]"
+                );
+
+                return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(response);
+            }
+            List<SchedulePeriod> sortedPeriods = periods.stream()
+                    .sorted(Comparator.comparing(period -> {
+                        ScheduleSlot slot = ScheduleSlotDb.findById(period.getSlot_id()).orElse(null);
+                        return (slot != null) ? slot.getBegin_time() : null;
+                    }, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .toList();
+
+            Map<String, Object> response = Map.of(
+                    "schedule", schedule,
+                    "periods", sortedPeriods
+            );
+
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(response);
+        } catch (Exception error) {
+            return ResponseEntity.internalServerError().body(Map.of("message", "Ошибка: " + error.getMessage()));
+        }
+    }
     /*@PostMapping(value = "/getPeriods", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Получение периодов расписания с фильтрацией, сортировкой и пагинацией")
     public ResponseEntity<?> getPeriods(
