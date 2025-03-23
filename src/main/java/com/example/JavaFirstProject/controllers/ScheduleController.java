@@ -397,10 +397,9 @@ public class ScheduleController {
             periods = optPeriods.orElse(null);
             if(periods== null)
             {
-                Map<String, Object> response = Map.of(
-                        "schedule", schedule,
-                        "periods", "[]"
-                );
+                Map<String, Object> response = new LinkedHashMap<>();
+                response.put("schedule", schedule);
+                response.put("periods", "[]");
 
                 return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(response);
             }
@@ -411,10 +410,9 @@ public class ScheduleController {
                     }, Comparator.nullsLast(Comparator.naturalOrder())))
                     .toList();
 
-            Map<String, Object> response = Map.of(
-                    "schedule", schedule,
-                    "periods", sortedPeriods
-            );
+            Map<String, Object> response = new LinkedHashMap<>();
+                    response.put("schedule", schedule);
+                    response.put("periods", sortedPeriods);
 
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(response);
         } catch (Exception error) {
