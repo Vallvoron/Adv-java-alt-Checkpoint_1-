@@ -384,11 +384,8 @@ public class ScheduleController {
             Optional<Schedule> optSchedule = (id != null)
                     ? ScheduleDb.findById(id)
                     : ScheduleDb.findByScheduleName(name);
-            if (optSchedule.isEmpty()) {
-                optSchedule = ScheduleDb.findByScheduleName(name);
-                if(optSchedule.isEmpty()){
-                    return ResponseEntity.status(404).body(Map.of("message", "Расписание не найдено ни по одному параметру"));
-                }
+            if(optSchedule.isEmpty()){
+                return ResponseEntity.status(404).body(Map.of("message", "Расписание не найдено ни по одному параметру"));
             }
             Schedule schedule = optSchedule.get();
             if(!Objects.equals(schedule.getScheduleName(), name) && name!=null){
