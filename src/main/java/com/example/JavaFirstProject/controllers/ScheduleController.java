@@ -8,10 +8,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Sort;
 
 import java.lang.reflect.Method;
 import java.time.Instant;
@@ -51,9 +54,9 @@ public class ScheduleController {
             newschedule.setCreation_date(Instant.now());
 
             ScheduleDb.save(newschedule);
-            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body("Расписание успешно создано");
+            return ResponseEntity.ok().body("Расписание успешно создано");
         }catch (Exception error) {
-            return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
+            return ResponseEntity.internalServerError().body(Map.of("message", "Ошибка: " + error.getMessage()));
         }
     };
 
@@ -65,12 +68,12 @@ public class ScheduleController {
         try {
             Optional<Schedule> schedule = ScheduleDb.findById(scheduleId);
             if (schedule.isEmpty()){
-                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Расписания с указанным id не существует");
+                return ResponseEntity.status(400).body("Расписания с указанным id не существует");
             }
             Schedule scheduleRes = schedule.get();
-            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(scheduleRes);
+            return ResponseEntity.ok().body(scheduleRes);
         }catch (Exception error) {
-            return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
+            return ResponseEntity.internalServerError().body(Map.of("message", "Ошибка: " + error.getMessage()));
         }
     };
 
@@ -84,9 +87,9 @@ public class ScheduleController {
             newScheduleTemplate.setCreation_date(Instant.now());
 
             ScheduleTemplateDb.save(newScheduleTemplate);
-            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body("Шаблон Расписания успешно создан");
+            return ResponseEntity.ok().body("Шаблон Расписания успешно создан");
         }catch (Exception error) {
-            return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
+            return ResponseEntity.internalServerError().body(Map.of("message", "Ошибка: " + error.getMessage()));
         }
     };
 
@@ -98,12 +101,12 @@ public class ScheduleController {
         try {
             Optional<ScheduleTemplate> scheduleTemplate = ScheduleTemplateDb.findById(templateId);
             if (scheduleTemplate.isEmpty()){
-                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Шаблона с указанным id не существует");
+                return ResponseEntity.status(400).body("Шаблона с указанным id не существует");
             }
             ScheduleTemplate scheduleTemplateRes = scheduleTemplate.get();
-            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(scheduleTemplateRes);
+            return ResponseEntity.ok().body(scheduleTemplateRes);
         }catch (Exception error) {
-            return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
+            return ResponseEntity.internalServerError().body(Map.of("message", "Ошибка: " + error.getMessage()));
         }
     };
 
@@ -115,12 +118,12 @@ public class ScheduleController {
     public ResponseEntity<?> createScheduleSlot(@Valid @RequestBody CreateSlot request){
         try {
             if (request.getBegin_time().isAfter(request.getEnd_time())){
-                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Дата начала не должна быть после даты окончания");
+                return ResponseEntity.status(400).body("Дата начала не должна быть после даты окончания");
             }
             Optional<ScheduleTemplate> scheduleTemplate = ScheduleTemplateDb.findById(request.getSchedule_template_id());
 
             if (scheduleTemplate.isEmpty()){
-                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Шаблона с указанным id не существует");
+                return ResponseEntity.status(400).body("Шаблона с указанным id не существует");
             }
 
             ScheduleSlot newScheduleSlot = new ScheduleSlot();
@@ -129,9 +132,9 @@ public class ScheduleController {
             newScheduleSlot.setEnd_time(request.getEnd_time());
 
             ScheduleSlotDb.save(newScheduleSlot);
-            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body("Слот Расписания успешно создан");
+            return ResponseEntity.ok().body("Слот Расписания успешно создан");
         }catch (Exception error) {
-            return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
+            return ResponseEntity.internalServerError().body(Map.of("message", "Ошибка: " + error.getMessage()));
         }
     };
 
@@ -143,12 +146,12 @@ public class ScheduleController {
         try {
             Optional<ScheduleSlot> scheduleSlot = ScheduleSlotDb.findById(slotId);
             if (scheduleSlot.isEmpty()){
-                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Слота с указанным id не существует");
+                return ResponseEntity.status(400).body("Слота с указанным id не существует");
             }
             ScheduleSlot scheduleSlotRes = scheduleSlot.get();
-            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(scheduleSlotRes);
+            return ResponseEntity.ok().body(scheduleSlotRes);
         }catch (Exception error) {
-            return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
+            return ResponseEntity.internalServerError().body(Map.of("message", "Ошибка: " + error.getMessage()));
         }
     };
 
@@ -165,9 +168,9 @@ public class ScheduleController {
             newEmployee.setPosition(request.getPosition());
 
             EmployeeDb.save(newEmployee);
-            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body("Сотрудник успешно создан");
+            return ResponseEntity.ok().body("Сотрудник успешно создан");
         }catch (Exception error) {
-            return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
+            return ResponseEntity.internalServerError().body(Map.of("message", "Ошибка: " + error.getMessage()));
         }
     };
 
@@ -179,12 +182,12 @@ public class ScheduleController {
         try {
             Optional<Employee> employee = EmployeeDb.findById(employeeId);
             if (employee.isEmpty()){
-                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Сотрудника с указанным id не существует");
+                return ResponseEntity.status(400).body("Сотрудника с указанным id не существует");
             }
             Employee employeeRes = employee.get();
-            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(employeeRes);
+            return ResponseEntity.ok().body(employeeRes);
         }catch (Exception error) {
-            return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
+            return ResponseEntity.internalServerError().body(Map.of("message", "Ошибка: " + error.getMessage()));
         }
     };
 
@@ -196,7 +199,7 @@ public class ScheduleController {
         try {
             Optional<Employee> user = EmployeeDb.findById(administratorId);
             if (user.isEmpty()) {
-                return ResponseEntity.status(404).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Пользователь не наден"));
+                return ResponseEntity.status(404).body(Map.of("message", "Пользователь не наден"));
             }
 
             Employee administrator = user.get();
@@ -204,19 +207,19 @@ public class ScheduleController {
             SchedulePeriod newPeriod = new SchedulePeriod();
             Optional<Schedule> scheduleOptional = ScheduleDb.findById(request.getSchedule_id());
             if (scheduleOptional.isEmpty()) {
-                return ResponseEntity.status(404).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Расписание не найдено"));
+                return ResponseEntity.status(404).body(Map.of("message", "Расписание не найдено"));
             }
             Schedule schedule = scheduleOptional.get();
             Optional<ScheduleSlot> scheduleSlotOptional = ScheduleSlotDb.findById(request.getSlot_id());
             if (scheduleSlotOptional.isEmpty()) {
-                return ResponseEntity.status(404).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Слот расписания не найден"));
+                return ResponseEntity.status(404).body(Map.of("message", "Слот расписания не найден"));
             }
             ScheduleSlot slot = scheduleSlotOptional.get();
             String executor;
             if(!request.getExecutor_id().equals(administratorId) && request.getExecutor_id()!=""){
                 Optional<Employee> executorOptional = EmployeeDb.findById(request.getExecutor_id());
                 if (executorOptional.isEmpty()) {
-                    return ResponseEntity.status(404).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Исполнитель не найден"));
+                    return ResponseEntity.status(404).body(Map.of("message", "Исполнитель не найден"));
                 }
                 executor= request.getExecutor_id();
             }
@@ -228,14 +231,14 @@ public class ScheduleController {
             newPeriod.setExecutor_id(executor);
 
             if (!isOverlapping(newPeriod, slot.getBegin_time(), slot.getEnd_time())) {
-                return ResponseEntity.status(409).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Период перекрывается с существующим периодом"));
+                return ResponseEntity.status(409).body(Map.of("message", "Период перекрывается с существующим периодом"));
             }
             SchedulePeriodDb.save(newPeriod);
             schedule.setUpdate_date(Instant.now());
             ScheduleDb.save(schedule);
-            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body("Период успешно создан");
+            return ResponseEntity.ok().body("Период успешно создан");
         }catch (Exception error) {
-            return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
+            return ResponseEntity.internalServerError().body(Map.of("message", "Ошибка: " + error.getMessage()));
         }
     };
 
@@ -247,12 +250,12 @@ public class ScheduleController {
         try {
             Optional<SchedulePeriod> period = SchedulePeriodDb.findById(periodId);
             if (period.isEmpty()){
-                ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body("Периода с указанным id не существует");
+                ResponseEntity.status(400).body("Периода с указанным id не существует");
             }
             SchedulePeriod periodRes = period.get();
-            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(periodRes);
+            return ResponseEntity.ok().body(periodRes);
         }catch (Exception error) {
-            return ResponseEntity.internalServerError().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Ошибка: " + error.getMessage()));
+            return ResponseEntity.internalServerError().body(Map.of("message", "Ошибка: " + error.getMessage()));
         }
     };
 
@@ -351,12 +354,12 @@ public class ScheduleController {
             int toIndex = Math.min(fromIndex + size, periodList.size());
 
             if (fromIndex >= periodList.size()) {
-                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Вы вышли за пределы списка"));
+                return ResponseEntity.status(400).body(Map.of("message", "Вы вышли за пределы списка"));
             }
 
             List<SchedulePeriod> paginatedList = periodList.subList(fromIndex, toIndex);
 
-            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(Map.of(
+            return ResponseEntity.ok().body(Map.of(
                     "totalCount", totalCount,
                     "totalPagesCount", totalPages,
                     "currentPage", page,
@@ -384,12 +387,12 @@ public class ScheduleController {
             if (optSchedule.isEmpty()) {
                 optSchedule = ScheduleDb.findByScheduleName(name);
                 if(optSchedule.isEmpty()){
-                    return ResponseEntity.status(404).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Расписание не найдено ни по одному параметру"));
+                    return ResponseEntity.status(404).body(Map.of("message", "Расписание не найдено ни по одному параметру"));
                 }
             }
             Schedule schedule = optSchedule.get();
             if(!Objects.equals(schedule.getScheduleName(), name) && name!=null){
-                return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Имя не соответствует расписанию с указанным id"));
+                return ResponseEntity.badRequest().body(Map.of("message", "Имя не соответствует расписанию с указанным id"));
             }
 
             Optional<List<SchedulePeriod>> optPeriods = SchedulePeriodDb.findAllByScheduleId(schedule.getId());
@@ -401,7 +404,7 @@ public class ScheduleController {
                 response.put("schedule", schedule);
                 response.put("periods", "[]");
 
-                return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(response);
+                return ResponseEntity.ok().body(response);
             }
             List<SchedulePeriod> sortedPeriods = periods.stream()
                     .sorted(Comparator.comparing(period -> {
@@ -414,7 +417,7 @@ public class ScheduleController {
                     response.put("schedule", schedule);
                     response.put("periods", sortedPeriods);
 
-            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(response);
+            return ResponseEntity.ok().body(response);
         } catch (Exception error) {
             return ResponseEntity.internalServerError().body(Map.of("message", "Ошибка: " + error.getMessage()));
         }
@@ -495,12 +498,12 @@ public class ScheduleController {
             int toIndex = Math.min(fromIndex + size, periodList.size());
 
             if (fromIndex >= periodList.size()) {
-                return ResponseEntity.status(400).contentType(MediaType.APPLICATION_JSON).body(Map.of("message", "Вы вышли за пределы списка"));
+                return ResponseEntity.status(400).body(Map.of("message", "Вы вышли за пределы списка"));
             }
 
             List<SchedulePeriod> paginatedList = periodList.subList(fromIndex, toIndex);
 
-            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(Map.of(
+            return ResponseEntity.ok().body(Map.of(
                     "totalCount", totalCount,
                     "totalPagesCount", totalPages,
                     "currentPage", page,
